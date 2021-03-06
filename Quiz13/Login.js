@@ -13,6 +13,7 @@ export default function Login({ navigation }) {
     }else{
       if (password != '12345678'){
         setIsError(true);
+        alert('Incorrect Username Or Password')
       }else{
         setIsError(false);
         move();

@@ -1,45 +1,74 @@
 import React, { useEffect } from 'react'
 import { useState } from 'react'
-import { StyleSheet, Text, View, Image, Button, Dimensions } from 'react-native'
+import { StyleSheet, Text, View, Image, Dimensions } from 'react-native'
 import { FlatList, TouchableHighlight, TouchableOpacity } from 'react-native-gesture-handler';
 import { Data }from './data'
-import { Card, Icon } from 'react-native-elements'
+import { BottomSheet, Card, Icon, Button } from 'react-native-elements'
+import { log, set } from 'react-native-reanimated';
 
 export default function Home({route, navigation}) {
     const { username } = route.params;
     const [totalPrice, setTotalPrice] = useState(0);
-    const [quantity, setQuantity] = useState({});
+    const [quantity, setQuantity] = useState(1);
+    const [price, setPrice] = useState('')
+    const [selectedProduct, setSelectedProduct] = useState('')
+    const [products, setProducts] = useState([])
+    const [isVisible, setVisibility] = useState(false)
 
     const currencyFormat=(num)=> {
         return 'Rp ' + num.toFixed(0).replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.')
       };
 
-    const increment = (quantity, item) => {
-        let currentQty = quantity
-        
-        currentQty = {
-            id : item.id,
-            quantity : quantity
+    const closeBottomSheet = () => {
+        setQuantity(1)
+        setVisibility(false)
+    }
+
+    const updateHarga =() => {
+        setTotalPrice(0)
+        let temp = 0
+        for (let i = 0; i < products.length; i++){
+            const data = products[i]
+            console.log(data.price, data.quantity, data.price * data.quantity);
+            temp += data.price * data.quantity
+            setTotalPrice(temp)
         }
 
-        setQuantity(currentQty)
-    }
-
-    const getQuantity = (item) => {
-        console.log(quantity, 'getQuantity');
-        return Object.values(quantity).find(value => quantity[value] === item.id)
-    }
-    
-    const updateHarga =(price, quantity)=>{
-        console.log("UpdatPrice : " + price);
-        const temp = Number(price) + totalPrice;
-        console.log(temp)
-        setTotalPrice(temp)
+        
+        closeBottomSheet()
         
         //? #Bonus (10 poin) -- HomeScreen.js --
         //? agar harga dapat update misal di tambah lebih dari 1 item atau lebih -->
             
     }
+
+    const getQuantity = (id) => {
+        let currentProduct = products.find(e => e.id === id)
+        if(currentProduct != undefined) {
+            setQuantity(currentProduct.quantity)
+        }else{
+            setQuantity(1)
+        }
+    }
+
+    const addProduct = (id, quantity, price) => {
+        let currentProduct = products.find(e => e.id === id)
+        console.log(currentProduct)
+        if(currentProduct != undefined){
+            currentProduct.quantity = quantity
+        }else{
+            products.push({
+                id : id,
+                quantity : quantity,
+                price: price
+            })
+        }
+
+        updateHarga()
+
+        // console.log(products);
+    }
+
     return (
         <View style={styles.container}>
             <View style={{flexDirection:'row', justifyContent:"space-between", padding: 16}}>
@@ -52,7 +81,7 @@ export default function Home({route, navigation}) {
                     <Text style={{fontSize:18, fontWeight:'bold'}}> {currencyFormat(totalPrice)}</Text>
                 </View>
             </View>
-            <View style={{flex: 1,  marginBottom: 20, paddingBottom: 60}}>
+            <View style={{flex: 1,  marginBottom: 20}}>
             {/* //? #Soal No 2 (15 poin) -- Home.js -- Function Home
             //? Buatlah 1 komponen FlatList dengan input berasal dari data.js   
             //? dan memiliki 2 kolom, sehingga menampilkan 2 item per baris (horizontal) -->
@@ -68,7 +97,10 @@ export default function Home({route, navigation}) {
                 renderItem={({item}) => {
                     return(
                         <TouchableOpacity onPress={() => { 
-                                updateHarga(parseInt(item.harga))
+                                setVisibility(true)
+                                setSelectedProduct(item.id)
+                                setPrice(item.harga)
+                                getQuantity(item.id)
                             }}>
                             <Card containerStyle={{borderRadius: 4, padding : 0}}>
                                 <Image
@@ -78,18 +110,43 @@ export default function Home({route, navigation}) {
                                 <Text style={{margin : 8, fontWeight : 'bold', fontSize :12}}>{item.title}</Text>
                                 <Text style={{marginHorizontal : 8}}>{currencyFormat(parseInt(item.harga))}</Text>
                                 <Card.Divider style={{margin: 8}}></Card.Divider>
-                                <View style={{flex : 1, flexDirection : 'row', justifyContent : 'center'}}>
+                            </Card>
+                        </TouchableOpacity>
+                    )
+                }}
+                />
+
+                <BottomSheet containerStyle={{backgroundColor: 'rgba(0.5, 0.25, 0, 0.2)'}}
+                    isVisible={isVisible}>
+                        <Icon
+                            containerStyle={{justifyContent: 'flex-end'}}
+                            raised
+                            name='close'
+                            type='font-awesome'                     
+                            color='#f50'
+                            size={12}
+                            onPress={() => 
+                                closeBottomSheet()
+                            } />
+                        <View style={{flex : 1, flexDirection : 'row', padding : 12, justifyContent : 'center', borderTopLeftRadius: 12, borderTopRightRadius: 12, backgroundColor : 'white'}}>
                                 <Icon
                                     raised
                                     name='minus'
                                     type='font-awesome'
                                     color='#f50'
                                     size={12}
+                                    style={{alignItems : 'flex-end'}}
                                     onPress={() => 
-                                        setQuantity(quantity - 1)
+                                        {
+                                            if(quantity > 0){
+                                                setQuantity(quantity - 1)
+                                            }else{
+                                                alert('Has Reached Minimum Qty')
+                                            }
+                                        }
                                     } />
                                     
-                                    <Text style={{flex : 1}}>{getQuantity(item)}</Text>
+                                    <Text style={{flex : 1, margin : 12}}>{quantity}</Text>
                                     
                                     <Icon
                                     raised
@@ -98,14 +155,24 @@ export default function Home({route, navigation}) {
                                     color='#f50'
                                     size={12}
                                     onPress={() => 
-                                        increment(1, item)
+                                        setQuantity(quantity + 1)
                                     } />
+
                                 </View>
-                            </Card>
-                        </TouchableOpacity>
-                    )
-                }}
-                />
+                                <View style={{backgroundColor : 'white'}}>
+                                    
+                                <Button
+                                    containerStyle={{margin : 16}}
+                                        title="Save"
+                                        type="solid"
+                                        raised
+                                        onPress={() => 
+                                            addProduct(selectedProduct, quantity, price)
+                                        }
+                                        />
+                                </View>
+
+                    </BottomSheet>
             </View>
         </View>
     )
